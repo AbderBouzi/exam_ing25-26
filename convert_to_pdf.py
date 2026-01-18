@@ -9,77 +9,90 @@ SOURCE_DIR = r'c:\Users\afd\Desktop\exam-ASD-S1-25-26\extracted_code'
 
 def format_c_code(code):
     """
-    Standard C formatter. 
-    Enforces:
-    - Newlines after semicolons (except in for loops).
-    - Newlines after '{' and '}'.
-    - Correct indentation.
+    Extremely robust C formatter for OCR-extracted code.
+    Forces newlines and proper IDE-like indentation.
     """
-    # 1. Normalize all whitespace to single spaces to clear messy formatting
+    # 1. Basic cleaning of OCR mess in includes
+    code = re.sub(r'#\s*include\s*[<"]\s*([\w\s\.]+)\s*[>"]', r'#include <\1>', code)
+    code = code.replace('. h>', '.h>')
+    code = code.replace(' .h>', '.h>')
+    code = code.replace('< ', '<')
+    code = code.replace(' >', '>')
+    
+    # 2. Add spaces around operators and remove excessive whitespace
     code = re.sub(r'\s+', ' ', code)
     
-    # 2. Temporary protection for 'for' loops to avoid splitting their semicolons
-    # We use a placeholder for semicolons inside parentheses
-    def protect_loops(match):
-        return match.group(0).replace(';', '<SEMICOLON>')
+    # 3. Handle structural line breaks
+    # Move includes to their own lines
+    code = re.sub(r'(#include\s*<[^>]+>)', r'\1\n', code)
     
-    # Regex for for loops: for (...)
-    # Minimal balancing for parentheses (up to 2 levels deep for simplicity or just greedy non-newline)
-    # Since we normalized to single line, ".*?" works well.
-    code = re.sub(r'for\s*\(.*?\)', protect_loops, code)
-
-    # 3. Add newlines around structural elements
-    code = code.replace(';', ';\n')
+    # Braces on new lines (Allman Style)
     code = code.replace('{', '\n{\n')
     code = code.replace('}', '\n}\n')
     
-    # 4. Restore protected semicolons in for loops
-    code = code.replace('<SEMICOLON>', ';')
+    # Semicolons followed by newline (protect for-loops)
+    # Temporary placeholder for semicolons inside parentheses
+    def hide_semicolons_in_parens(match):
+        return match.group(0).replace(';', '###MARK###')
     
-    # 5. Add newlines for #include
-    code = re.sub(r'#\s*include', '\n#include', code)
-
-    # 6. Re-indent line by line
-    lines = code.split('\n')
-    formatted_lines = []
-    indent_level = 0
-    indent_size = 4
+    # Protect content inside (...)
+    code = re.sub(r'\([^)]*\)', hide_semicolons_in_parens, code)
     
-    for line in lines:
+    # Now split by semicolons
+    code = code.replace(';', ';\n')
+    
+    # Add newlines after if/for/while closing parens if not followed by brace
+    # code = re.sub(r'(\)\s*)([^{;\s])', r'\1\n\2', code)
+    
+    # Restore semicolons
+    code = code.replace('###MARK###', ';')
+    
+    # 4. Final cleaning and Indentation
+    raw_lines = code.split('\n')
+    indented_lines = []
+    level = 0
+    
+    for line in raw_lines:
         line = line.strip()
         if not line:
             continue
             
-        # Dedent for closing brace
+        # Adjust level for closing brace
         if line.startswith('}'):
-            indent_level = max(0, indent_level - 1)
+            level = max(0, level - 1)
             
-        # Add current indent
-        formatted_lines.append(' ' * (indent_level * indent_size) + line)
+        # Add line with indentation
+        indented_lines.append('    ' * level + line)
         
-        # Indent for opening brace
+        # Adjust level for opening brace
         if line.endswith('{') or line == '{':
-            indent_level += 1
+            level += 1
             
-        # Extra spacing: Add a blank line after closing a block (function/if/loop)
-        # to separate logical sections "aerated"
-        if line.startswith('}'):
-            formatted_lines.append('')
+        # Blank line after a block ends for "aeration"
+        if line == '}':
+            indented_lines.append('')
 
-    return '\n'.join(formatted_lines)
+    return '\n'.join(indented_lines)
 
 def process_markdown_code_blocks(text):
     """
-    Finds ```c ... ``` blocks and formats the code inside.
+    Finds ``` ... ``` blocks and formats the code inside.
+    Returns (processed_text, dict_of_placeholders)
     """
-    pattern = re.compile(r'```c(.*?)```', re.DOTALL)
+    placeholders = {}
+    pattern = re.compile(r'```(?:c|)\n?(.*?)```', re.DOTALL | re.IGNORECASE)
     
     def replacer(match):
         code_content = match.group(1)
         formatted_code = format_c_code(code_content)
-        return f'```c\n{formatted_code}\n```'
+        placeholder = f"ZZZ_CODE_BLOCK_{len(placeholders)}_ZZZ"
+        # We manually escape basic HTML in code but keep our formatting
+        safe_code = formatted_code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        placeholders[placeholder] = f'<pre class="code-block"><code>{safe_code}</code></pre>'
+        return f"\n\n{placeholder}\n\n"
     
-    return pattern.sub(replacer, text)
+    processed_text = pattern.sub(replacer, text)
+    return processed_text, placeholders
 
 def convert_md_to_pdf(md_file):
     try:
@@ -89,122 +102,102 @@ def convert_md_to_pdf(md_file):
         print(f"Converting {base_name}...")
 
         with open(md_file, 'r', encoding='utf-8') as f:
-            text = f.read()
+            content = f.read()
 
-        # Pre-process: Format C code blocks
-        text = process_markdown_code_blocks(text)
+        # 1. Protect code blocks and format them
+        content, placeholders = process_markdown_code_blocks(content)
 
-        # Custom processing to wrap each copy in a page-breaking div
-        # Split by lines, identify headers
-        lines = text.split('\n')
+        # 2. Split into copies based on headers
+        copy_pattern = re.compile(r'^#+\s*Copy.*$', re.MULTILINE | re.IGNORECASE)
+        splits = list(copy_pattern.finditer(content))
+        
         sections = []
-        current_section = []
-        
-        # Regex to match "# Copy", "## Copy", etc.
-        copy_header_pattern = re.compile(r'^#+\s*Copy', re.IGNORECASE)
+        if not splits:
+            sections = [content]
+        else:
+            for i in range(len(splits)):
+                start = splits[i].start()
+                end = splits[i+1].start() if i+1 < len(splits) else len(content)
+                sections.append(content[start:end])
 
-        for line in lines:
-            # Check for Copy header
-            if copy_header_pattern.match(line):
-                if current_section:
-                    # If we have a previous section, add it ONLY if it's a Copy section
-                    # (Discard preamble text that doesn't start with a header if it's before the first copy)
-                    # Actually, better logic: split sections, ignore preamble.
-                    sections.append('\n'.join(current_section))
-                current_section = [line]
-            else:
-                if current_section: # Only add lines if we are inside a section (skips preamble)
-                    current_section.append(line)
-        
-        if current_section:
-            sections.append('\n'.join(current_section))
-
-        # Convert each section to HTML and wrap it
-        full_body_content = ""
+        # 3. Build HTML Body
+        html_body = ""
         for i, sec in enumerate(sections):
-            if not sec.strip(): continue
+            # Convert section to markdown
+            sec_html = markdown.markdown(sec, extensions=['fenced_code'])
             
-            # Extract Copy Number for cleaner display if needed, but MD header is fine.
-            sec_html = markdown.markdown(sec, extensions=['fenced_code', 'codehilite'])
-            
-            # Wrapper div for page break control.
-            # We use page-break-after: always for ALL sections to ensure isolation.
-            # The last page blank check is handled by xhtml2pdf usually stripping empty last pages, 
-            # or we can try to avoid it for the last one.
-            # But "1 page = 1 copie" is strict.
-            
-            style = 'page-break-after: always;'
-            if i == len(sections) - 1:
-                style = '' # No break after the last one
-                
-            full_body_content += f'<div class="copy-section" style="{style}">{sec_html}</div>'
+            # Replace placeholders back
+            for placeholder, code_html in placeholders.items():
+                # We use a pattern to avoid partial matches and handle potential <p> wrapper from markdown
+                sec_html = sec_html.replace(f"<p>{placeholder}</p>", code_html)
+                sec_html = sec_html.replace(placeholder, code_html)
 
-        # Add CSS
+            style = "page-break-after: always;" if i < len(sections) - 1 else ""
+            html_body += f'<div class="section-container" style="{style}">{sec_html}</div>'
+
+        # 4. Final PDF Template with strict CSS
         full_html = f"""
         <html>
         <head>
             <style>
                 @page {{
                     size: a4;
-                    margin: 1cm;
+                    margin: 1.5cm;
                 }}
-                body {{ 
-                    font-family: Helvetica, sans-serif; 
-                    font-size: 8pt; /* Small font to fit content on one page */
+                body {{
+                    font-family: Helvetica, Arial, sans-serif;
+                    font-size: 11pt;
+                    color: #222;
+                    line-height: 1.4;
                 }}
-                .copy-section {{
+                h1, h2, h3 {{
+                    color: #000;
+                    border-bottom: 2px solid #555;
+                    padding-bottom: 5px;
+                    margin-top: 0;
+                }}
+                .section-container {{
                     display: block;
                     width: 100%;
                 }}
-                h1 {{ 
+                pre.code-block {{
+                    background-color: #f8f8f8;
+                    border: 1px solid #ddd;
+                    padding: 15px;
+                    margin: 20px 0;
+                    font-family: 'Courier New', monospace;
+                    font-size: 10pt;
+                    white-space: pre; /* CRITICAL: Must be pre to respect \n */
                     color: #000;
-                    font-size: 12pt;
-                    border-bottom: 1px solid #000;
-                    margin-top: 0;
-                    margin-bottom: 10px;
-                    padding-bottom: 5px;
+                    display: block;
+                    width: 95%;
                 }}
-                pre {{ 
-                    background-color: #f8f8f8; 
-                    padding: 8px; 
-                    border: 1px solid #eee; 
-                    white-space: pre-wrap; 
-                    word-wrap: break-word; /* Ensure wrapping */
-                    font-size: 9pt; /* Slightly clearer code */
-                    line-height: 1.4; /* More spaced out */
-                    font-family: "Courier New", monospace;
+                code {{
+                    font-family: 'Courier New', monospace;
                 }}
-                p {{ margin: 5px 0; }}
             </style>
         </head>
         <body>
-            {full_body_content}
+            {html_body}
         </body>
         </html>
         """
 
-        # Convert HTML to PDF
-        with open(pdf_file, "wb") as pdf_out:
-            pisa_status = pisa.CreatePDF(full_html, dest=pdf_out, encoding='utf-8')
+        with open(pdf_file, "wb") as f_out:
+            pisa_status = pisa.CreatePDF(full_html, dest=f_out, encoding='utf-8')
 
         if pisa_status.err:
             print(f"Error converting {base_name}: {pisa_status.err}")
         else:
-            print(f"Successfully created {pdf_file}")
+            print(f"Success: {pdf_file}")
 
     except Exception as e:
-        print(f"Failed to convert {md_file}: {e}")
+        print(f"Exception for {md_file}: {e}")
 
 def main():
-    md_files = glob.glob(os.path.join(SOURCE_DIR, "*.md"))
-    if not md_files:
-        print("No markdown files found in the source directory.")
-        return
-
-    print(f"Found {len(md_files)} markdown files.")
-    for md_file in md_files:
-        convert_md_to_pdf(md_file)
-    print("Conversion complete.")
+    files = glob.glob(os.path.join(SOURCE_DIR, "*.md"))
+    for f in files:
+        convert_md_to_pdf(f)
 
 if __name__ == "__main__":
     main()
