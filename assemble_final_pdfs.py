@@ -36,9 +36,9 @@ def process_document(doc_name, copies_count, correction_map=None):
                 copies_list = list(range(start_copy, start_copy + copies_count))
 
             pages_per_copy = 1
-            if doc_name == "doc20260115223319":
-                if num_source_pages >= 14 and copies_count == 7:
-                    pages_per_copy = 2
+            if doc_name in ["doc20260115223319", "doc20260115223525", "doc20260115223647"]:
+                pages_per_copy = 2
+                print(f"  Detected 2 source pages per copy for this document.")
             
             idx_source = 0
             
