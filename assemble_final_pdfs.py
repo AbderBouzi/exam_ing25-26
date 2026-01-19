@@ -20,10 +20,9 @@ def process_document(doc_name, copies_count, correction_map=None):
     try:
         with open(source_pdf_path, 'rb') as f_source:
             reader_source = PyPDF2.PdfReader(f_source)
-            # source_pages = list(reader_source.pages) # No need to list, access by index
             num_source_pages = len(reader_source.pages)
 
-            print(f"Processing {doc_name}: Source Pages={num_source_pages}")
+            print(f"Processing {doc_name}: Source Pages={num_source_pages}, Expected Copies={copies_count}")
 
             copies_list = []
             if doc_name == "doc20260115222526":
@@ -38,7 +37,7 @@ def process_document(doc_name, copies_count, correction_map=None):
 
             pages_per_copy = 1
             if doc_name == "doc20260115223319":
-                if num_source_pages == 14 and copies_count == 7:
+                if num_source_pages >= 14 and copies_count == 7:
                     pages_per_copy = 2
             
             idx_source = 0
@@ -59,35 +58,23 @@ def process_document(doc_name, copies_count, correction_map=None):
                 code_split_name = f"code_{doc_name}_Copy_{copy_num}.pdf"
                 code_split_path = os.path.join(code_split_dir, code_split_name)
                 
+                f_code = None
                 if os.path.exists(code_split_path):
                     try:
-                        # For code/corr, we open, add, close. 
-                        # To safe add, we must keep them open strictly speaking until write?
-                        # No, when adding page from one PDF to another Writer, PyPDF2 usually requires source stream open until write is called?
-                        # YES. If we close code_split_path before merger.write(f_out), it fails.
-                        # So we need to manage these sub-files being open too.
-                        # Given we merge one copy at a time, we can open them, add, write, close.
-                        # We must structure this carefully.
-                        
                         f_code = open(code_split_path, 'rb')
                         reader_code = PyPDF2.PdfReader(f_code)
                         for p in reader_code.pages:
                             merger.add_page(p)
-                        
-                        # We will close f_code AFTER writing the final PDF
-                        
                     except Exception as e:
                         print(f"  Error adding code PDF {code_split_name}: {e}")
-                        f_code = None
                 else:
-                    print(f" source Warning: Code split file missing: {code_split_name}")
-                    f_code = None
+                    print(f"  Warning: Code split file missing: {code_split_name}")
 
                 # 3. Add Correction PDF
                 corr_split_name = f"Corr_{doc_name}_Copy_{copy_num}.pdf"
                 corr_split_path = os.path.join(corr_split_dir, corr_split_name)
-                f_corr = None
                 
+                f_corr = None
                 if os.path.exists(corr_split_path):
                     try:
                         f_corr = open(corr_split_path, 'rb')
@@ -121,10 +108,14 @@ docs = [
     ("doc20260115201344", 24),
     ("doc20260115220910", 18),
     ("doc20260115221134", 22),
-    ("doc20260115222526", 24),
+    ("doc20260115222526", 24), # Copy 23 missing handled inside
     ("doc20260115223319", 7),
     ("doc20260115223647", 4),
-    ("doc20260115223525", 5)
+    ("doc20260115223525", 5),
+    ("doc20260115221404", 24),
+    ("doc20260115221630", 28),
+    ("doc20260115222057", 23),
+    ("doc20260115222309", 26)
 ]
 
 for name, count in docs:
