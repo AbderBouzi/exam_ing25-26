@@ -1,3 +1,4 @@
+
 import os
 import glob
 import markdown
@@ -6,6 +7,10 @@ import re
 
 # Directory containing the markdown files
 SOURCE_DIR = r'c:\Users\afd\Desktop\exam-ASD-S1-25-26\extracted_code'
+# Revised output dir for split
+OUTPUT_DIR = r'c:\Users\afd\Desktop\exam-ASD-S1-25-26\extracted_code\pdf\split'
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 def format_c_code(code):
     """
@@ -94,12 +99,13 @@ def process_markdown_code_blocks(text):
     processed_text = pattern.sub(replacer, text)
     return processed_text, placeholders
 
-def convert_md_to_pdf(md_file):
+def convert_md_to_split_pdf(md_file):
     try:
         base_name = os.path.splitext(os.path.basename(md_file))[0]
-        pdf_file = os.path.join(SOURCE_DIR, f"{base_name}.pdf")
-        
-        print(f"Converting {base_name}...")
+        # Remove 'code_' prefix to get pure docname if needed, but keep it clear
+        # doc_id = base_name.replace('code_', '')
+
+        print(f"Converting {base_name} into individual copy files...")
 
         with open(md_file, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -108,96 +114,101 @@ def convert_md_to_pdf(md_file):
         content, placeholders = process_markdown_code_blocks(content)
 
         # 2. Split into copies based on headers
-        copy_pattern = re.compile(r'^#+\s*Copy.*$', re.MULTILINE | re.IGNORECASE)
+        copy_pattern = re.compile(r'^(#+\s*Copy\s*(\d+).*$)', re.MULTILINE | re.IGNORECASE)
         splits = list(copy_pattern.finditer(content))
         
         sections = []
         if not splits:
-            sections = [content]
+            # Maybe just one copy? Or none?
+             pass
         else:
             for i in range(len(splits)):
                 start = splits[i].start()
                 end = splits[i+1].start() if i+1 < len(splits) else len(content)
-                sections.append(content[start:end])
+                header_match = splits[i]
+                copy_num = header_match.group(2) # Extract copy number from Copy X
+                section_text = content[start:end]
+                sections.append({'copy_num': copy_num, 'text': section_text})
 
-        # 3. Build HTML Body
-        html_body = ""
-        for i, sec in enumerate(sections):
-            # Convert section to markdown
-            sec_html = markdown.markdown(sec, extensions=['fenced_code'])
+        # 3. Process each section individually
+        for sec in sections:
+            sec_html = markdown.markdown(sec['text'], extensions=['fenced_code'])
             
             # Replace placeholders back
             for placeholder, code_html in placeholders.items():
-                # We use a pattern to avoid partial matches and handle potential <p> wrapper from markdown
                 sec_html = sec_html.replace(f"<p>{placeholder}</p>", code_html)
                 sec_html = sec_html.replace(placeholder, code_html)
 
-            style = "page-break-after: always;" if i < len(sections) - 1 else ""
-            html_body += f'<div class="section-container" style="{style}">{sec_html}</div>'
+            html_body = f'<div class="section-container">{sec_html}</div>'
 
-        # 4. Final PDF Template with strict CSS
-        full_html = f"""
-        <html>
-        <head>
-            <style>
-                @page {{
-                    size: a4;
-                    margin: 1.5cm;
-                }}
-                body {{
-                    font-family: Helvetica, Arial, sans-serif;
-                    font-size: 11pt;
-                    color: #222;
-                    line-height: 1.4;
-                }}
-                h1, h2, h3 {{
-                    color: #000;
-                    border-bottom: 2px solid #555;
-                    padding-bottom: 5px;
-                    margin-top: 0;
-                }}
-                .section-container {{
-                    display: block;
-                    width: 100%;
-                }}
-                pre.code-block {{
-                    background-color: #f8f8f8;
-                    border: 1px solid #ddd;
-                    padding: 15px;
-                    margin: 20px 0;
-                    font-family: 'Courier New', monospace;
-                    font-size: 10pt;
-                    white-space: pre; /* CRITICAL: Must be pre to respect \n */
-                    color: #000;
-                    display: block;
-                    width: 95%;
-                }}
-                code {{
-                    font-family: 'Courier New', monospace;
-                }}
-            </style>
-        </head>
-        <body>
-            {html_body}
-        </body>
-        </html>
-        """
+            # 4. Final PDF Template with strict CSS
+            full_html = f"""
+            <html>
+            <head>
+                <style>
+                    @page {{
+                        size: a4;
+                        margin: 1.5cm;
+                    }}
+                    body {{
+                        font-family: Helvetica, Arial, sans-serif;
+                        font-size: 11pt;
+                        color: #222;
+                        line-height: 1.4;
+                    }}
+                    h1, h2, h3 {{
+                        color: #000;
+                        border-bottom: 2px solid #555;
+                        padding-bottom: 5px;
+                        margin-top: 0;
+                    }}
+                    .section-container {{
+                        display: block;
+                        width: 100%;
+                    }}
+                    pre.code-block {{
+                        background-color: #f8f8f8;
+                        border: 1px solid #ddd;
+                        padding: 15px;
+                        margin: 20px 0;
+                        font-family: 'Courier New', monospace;
+                        font-size: 10pt;
+                        white-space: pre; /* CRITICAL: Must be pre to respect \n */
+                        color: #000;
+                        display: block;
+                        width: 95%;
+                    }}
+                    code {{
+                        font-family: 'Courier New', monospace;
+                    }}
+                </style>
+            </head>
+            <body>
+                {html_body}
+            </body>
+            </html>
+            """
 
-        with open(pdf_file, "wb") as f_out:
-            pisa_status = pisa.CreatePDF(full_html, dest=f_out, encoding='utf-8')
+            # Output filename: code_docXXXX_Copy_Y.pdf
+            out_name = f"{base_name}_Copy_{sec['copy_num']}.pdf"
+            pdf_file = os.path.join(OUTPUT_DIR, out_name)
 
-        if pisa_status.err:
-            print(f"Error converting {base_name}: {pisa_status.err}")
-        else:
-            print(f"Success: {pdf_file}")
+            with open(pdf_file, "wb") as f_out:
+                pisa_status = pisa.CreatePDF(full_html, dest=f_out, encoding='utf-8')
+
+            if pisa_status.err:
+                print(f"Error converting {out_name}: {pisa_status.err}")
+            else:
+                # print(f"Success: {out_name}")
+                pass
 
     except Exception as e:
         print(f"Exception for {md_file}: {e}")
 
 def main():
-    files = glob.glob(os.path.join(SOURCE_DIR, "*.md"))
+    files = glob.glob(os.path.join(SOURCE_DIR, "code_*.md"))
     for f in files:
-        convert_md_to_pdf(f)
+        convert_md_to_split_pdf(f)
 
 if __name__ == "__main__":
     main()
