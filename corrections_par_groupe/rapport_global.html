@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rapport_global</title>
+    <style>
+        @media print {
+            @page {
+                margin: 2cm;
+                size: A4;
+            }
+            body {
+                margin: 0;
+            }
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Calibri', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            background: white;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+            page-break-after: avoid;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #95a5a6;
+            padding-bottom: 5px;
+            page-break-after: avoid;
+        }
+        
+        h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+            page-break-after: avoid;
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+            page-break-inside: avoid;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #3498db;
+            page-break-inside: avoid;
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        blockquote {
+            border-left: 4px solid #3498db;
+            padding-left: 20px;
+            margin-left: 0;
+            color: #555;
+            font-style: italic;
+            background-color: #f0f8ff;
+            padding: 10px 20px;
+            border-radius: 3px;
+        }
+        
+        hr {
+            border: none;
+            border-top: 2px solid #ecf0f1;
+            margin: 30px 0;
+        }
+        
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 30px;
+        }
+        
+        li {
+            margin: 5px 0;
+        }
+        
+        strong {
+            color: #2c3e50;
+        }
+        
+        em {
+            color: #7f8c8d;
+        }
+        
+        details {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+        
+        summary {
+            cursor: pointer;
+            font-weight: bold;
+            color: #495057;
+            padding: 5px;
+        }
+        
+        summary:hover {
+            color: #3498db;
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .print-button:hover {
+            background-color: #2980b9;
+        }
+        
+        @media print {
+            .print-button {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button" onclick="window.print()">🖨️ Imprimer en PDF</button>
+    <h1>📊 Rapport Global des Corrections</h1>
+<h2>Vue d'ensemble</h2>
+<ul>
+<li><strong>Nombre total de copies corrigées</strong>: 205</li>
+<li><strong>Nombre de groupes PDF</strong>: 11</li>
+<li><strong>Moyenne générale (ancienne correction)</strong>: 7.71/20</li>
+<li><strong>Moyenne générale (nouvelle correction)</strong>: 15.74/20</li>
+<li><strong>Amélioration moyenne</strong>: +8.02 points</li>
+<li><strong>Copies avec amélioration de note</strong>: 196/205 (95.6%)</li>
+</ul>
+<hr />
+<h2>📈 Détails par groupe</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Groupe</th>
+<th style="text-align: center;">Copies</th>
+<th style="text-align: center;">Anc. Moy.</th>
+<th style="text-align: center;">Nouv. Moy.</th>
+<th style="text-align: center;">Diff.</th>
+<th style="text-align: center;">Améliorées</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">doc20260115201344</td>
+<td style="text-align: center;">24</td>
+<td style="text-align: center;">9.33</td>
+<td style="text-align: center;">17.42</td>
+<td style="text-align: center;">+8.08</td>
+<td style="text-align: center;">23/24</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115220910</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">10.61</td>
+<td style="text-align: center;">17.22</td>
+<td style="text-align: center;">+6.61</td>
+<td style="text-align: center;">17/18</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115221134</td>
+<td style="text-align: center;">22</td>
+<td style="text-align: center;">10.05</td>
+<td style="text-align: center;">17.50</td>
+<td style="text-align: center;">+7.45</td>
+<td style="text-align: center;">18/22</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115221404</td>
+<td style="text-align: center;">24</td>
+<td style="text-align: center;">6.29</td>
+<td style="text-align: center;">12.88</td>
+<td style="text-align: center;">+6.58</td>
+<td style="text-align: center;">23/24</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115221630</td>
+<td style="text-align: center;">28</td>
+<td style="text-align: center;">6.25</td>
+<td style="text-align: center;">14.39</td>
+<td style="text-align: center;">+8.14</td>
+<td style="text-align: center;">28/28</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115222057</td>
+<td style="text-align: center;">23</td>
+<td style="text-align: center;">6.43</td>
+<td style="text-align: center;">14.48</td>
+<td style="text-align: center;">+8.04</td>
+<td style="text-align: center;">23/23</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115222309</td>
+<td style="text-align: center;">26</td>
+<td style="text-align: center;">4.69</td>
+<td style="text-align: center;">13.58</td>
+<td style="text-align: center;">+8.88</td>
+<td style="text-align: center;">25/26</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115222526</td>
+<td style="text-align: center;">24</td>
+<td style="text-align: center;">7.88</td>
+<td style="text-align: center;">17.88</td>
+<td style="text-align: center;">+10.00</td>
+<td style="text-align: center;">24/24</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115223319</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">10.57</td>
+<td style="text-align: center;">18.14</td>
+<td style="text-align: center;">+7.57</td>
+<td style="text-align: center;">7/7</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115223525</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">11.20</td>
+<td style="text-align: center;">16.80</td>
+<td style="text-align: center;">+5.60</td>
+<td style="text-align: center;">4/5</td>
+</tr>
+<tr>
+<td style="text-align: left;">doc20260115223647</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">7.50</td>
+<td style="text-align: center;">18.75</td>
+<td style="text-align: center;">+11.25</td>
+<td style="text-align: center;">4/4</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>🎯 Philosophie de la Correction Encourageante</h2>
+<p>Cette nouvelle approche de correction vise à:</p>
+<h3>✅ Valoriser l'effort</h3>
+<ul>
+<li>Reconnaître les tentatives même incomplètes</li>
+<li>Encourager la compréhension conceptuelle</li>
+<li>Récompenser la logique algorithmique</li>
+</ul>
+<h3>📚 Adapter au niveau débutant</h3>
+<ul>
+<li>Être plus tolérant sur les erreurs de syntaxe</li>
+<li>Valoriser les bonnes pratiques (messages printf, initialisation)</li>
+<li>Donner du crédit partiel généreusement</li>
+</ul>
+<h3>💪 Motiver les étudiants</h3>
+<ul>
+<li>Messages personnalisés et encourageants</li>
+<li>Focus sur les points forts avant les améliorations</li>
+<li>Suggestions constructives et spécifiques</li>
+</ul>
+<hr />
+<h2>📋 Comparaison des Barèmes</h2>
+<h3>Ancien barème (strict)</h3>
+<ul>
+<li>Lecture N, A, S: 3 pts</li>
+<li>Initialisation: 3 pts</li>
+<li>Condition boucle: 4 pts</li>
+<li>Logique présence/absence: 4 pts</li>
+<li>Compteurs: 3 pts</li>
+<li>Affichages intermédiaires: 2 pts</li>
+<li>Affichage final: 1 pt<br />
+<strong>Total: 20 pts</strong></li>
+</ul>
+<h3>Nouveau barème (encourageant)</h3>
+<ul>
+<li>Lecture des données: 4 pts (+1)</li>
+<li>Initialisation: 3 pts (=)</li>
+<li>Structure de boucle: 5 pts (+1)</li>
+<li>Logique présence/absence: 5 pts (+1)</li>
+<li>Compteurs: 2 pts (-1, simplifié)</li>
+<li>Affichages: 1 pt (-1, simplifié)<br />
+<strong>Total: 20 pts</strong></li>
+</ul>
+<hr />
+<h2>🌟 Impact</h2>
+<p>L'approche encourageante a permis:<br />
+- Une augmentation moyenne de <strong>8.02 points</strong><br />
+- <strong>95.6%</strong> des étudiants ont vu leur note s'améliorer<br />
+- Une meilleure reconnaissance de l'effort et de la compréhension</p>
+<p>Cette approche maintient des standards académiques tout en étant plus adaptée au niveau débutant des étudiants de 1ère année.</p>
+<hr />
+<p><em>Rapport généré automatiquement</em><br />
+<em>Date: 1769524383.0428505</em></p>
+</body>
+</html>

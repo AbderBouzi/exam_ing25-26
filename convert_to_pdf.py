@@ -1,214 +1,184 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Script pour convertir les corrections Markdown en PDF
+"""
 
 import os
-import glob
+import subprocess
+from pathlib import Path
 import markdown
-from xhtml2pdf import pisa
-import re
+from weasyprint import HTML, CSS
 
-# Directory containing the markdown files
-SOURCE_DIR = r'c:\Users\afd\Desktop\exam-ASD-S1-25-26\extracted_code'
-# Revised output dir for split
-OUTPUT_DIR = r'c:\Users\afd\Desktop\exam-ASD-S1-25-26\extracted_code\pdf\split'
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
-
-def format_c_code(code):
-    """
-    Extremely robust C formatter for OCR-extracted code.
-    Forces newlines and proper IDE-like indentation.
-    """
-    # 1. Basic cleaning of OCR mess in includes
-    code = re.sub(r'#\s*include\s*[<"]\s*([\w\s\.]+)\s*[>"]', r'#include <\1>', code)
-    code = code.replace('. h>', '.h>')
-    code = code.replace(' .h>', '.h>')
-    code = code.replace('< ', '<')
-    code = code.replace(' >', '>')
-    
-    # 2. Add spaces around operators and remove excessive whitespace
-    code = re.sub(r'\s+', ' ', code)
-    
-    # 3. Handle structural line breaks
-    # Move includes to their own lines
-    code = re.sub(r'(#include\s*<[^>]+>)', r'\1\n', code)
-    
-    # Braces on new lines (Allman Style)
-    code = code.replace('{', '\n{\n')
-    code = code.replace('}', '\n}\n')
-    
-    # Semicolons followed by newline (protect for-loops)
-    # Temporary placeholder for semicolons inside parentheses
-    def hide_semicolons_in_parens(match):
-        return match.group(0).replace(';', '###MARK###')
-    
-    # Protect content inside (...)
-    code = re.sub(r'\([^)]*\)', hide_semicolons_in_parens, code)
-    
-    # Now split by semicolons
-    code = code.replace(';', ';\n')
-    
-    # Add newlines after if/for/while closing parens if not followed by brace
-    # code = re.sub(r'(\)\s*)([^{;\s])', r'\1\n\2', code)
-    
-    # Restore semicolons
-    code = code.replace('###MARK###', ';')
-    
-    # 4. Final cleaning and Indentation
-    raw_lines = code.split('\n')
-    indented_lines = []
-    level = 0
-    
-    for line in raw_lines:
-        line = line.strip()
-        if not line:
-            continue
-            
-        # Adjust level for closing brace
-        if line.startswith('}'):
-            level = max(0, level - 1)
-            
-        # Add line with indentation
-        indented_lines.append('    ' * level + line)
-        
-        # Adjust level for opening brace
-        if line.endswith('{') or line == '{':
-            level += 1
-            
-        # Blank line after a block ends for "aeration"
-        if line == '}':
-            indented_lines.append('')
-
-    return '\n'.join(indented_lines)
-
-def process_markdown_code_blocks(text):
-    """
-    Finds ``` ... ``` blocks and formats the code inside.
-    Returns (processed_text, dict_of_placeholders)
-    """
-    placeholders = {}
-    pattern = re.compile(r'```(?:c|)\n?(.*?)```', re.DOTALL | re.IGNORECASE)
-    
-    def replacer(match):
-        code_content = match.group(1)
-        formatted_code = format_c_code(code_content)
-        placeholder = f"ZZZ_CODE_BLOCK_{len(placeholders)}_ZZZ"
-        # We manually escape basic HTML in code but keep our formatting
-        safe_code = formatted_code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        placeholders[placeholder] = f'<pre class="code-block"><code>{safe_code}</code></pre>'
-        return f"\n\n{placeholder}\n\n"
-    
-    processed_text = pattern.sub(replacer, text)
-    return processed_text, placeholders
-
-def convert_md_to_split_pdf(md_file):
+def convert_md_to_pdf_weasyprint(md_file: Path, pdf_file: Path):
+    """Convertit un fichier Markdown en PDF avec WeasyPrint"""
     try:
-        base_name = os.path.splitext(os.path.basename(md_file))[0]
-        # Remove 'code_' prefix to get pure docname if needed, but keep it clear
-        # doc_id = base_name.replace('code_', '')
-
-        print(f"Converting {base_name} into individual copy files...")
-
-        with open(md_file, 'r', encoding='utf-8') as f:
-            content = f.read()
-
-        # 1. Protect code blocks and format them
-        content, placeholders = process_markdown_code_blocks(content)
-
-        # 2. Split into copies based on headers
-        copy_pattern = re.compile(r'^(#+\s*Copy\s*(\d+).*$)', re.MULTILINE | re.IGNORECASE)
-        splits = list(copy_pattern.finditer(content))
+        # Lire le contenu Markdown
+        md_content = md_file.read_text(encoding='utf-8')
         
-        sections = []
-        if not splits:
-            # Maybe just one copy? Or none?
-             pass
-        else:
-            for i in range(len(splits)):
-                start = splits[i].start()
-                end = splits[i+1].start() if i+1 < len(splits) else len(content)
-                header_match = splits[i]
-                copy_num = header_match.group(2) # Extract copy number from Copy X
-                section_text = content[start:end]
-                sections.append({'copy_num': copy_num, 'text': section_text})
-
-        # 3. Process each section individually
-        for sec in sections:
-            sec_html = markdown.markdown(sec['text'], extensions=['fenced_code'])
-            
-            # Replace placeholders back
-            for placeholder, code_html in placeholders.items():
-                sec_html = sec_html.replace(f"<p>{placeholder}</p>", code_html)
-                sec_html = sec_html.replace(placeholder, code_html)
-
-            html_body = f'<div class="section-container">{sec_html}</div>'
-
-            # 4. Final PDF Template with strict CSS
-            full_html = f"""
-            <html>
-            <head>
-                <style>
-                    @page {{
-                        size: a4;
-                        margin: 1.5cm;
-                    }}
-                    body {{
-                        font-family: Helvetica, Arial, sans-serif;
-                        font-size: 11pt;
-                        color: #222;
-                        line-height: 1.4;
-                    }}
-                    h1, h2, h3 {{
-                        color: #000;
-                        border-bottom: 2px solid #555;
-                        padding-bottom: 5px;
-                        margin-top: 0;
-                    }}
-                    .section-container {{
-                        display: block;
-                        width: 100%;
-                    }}
-                    pre.code-block {{
-                        background-color: #f8f8f8;
-                        border: 1px solid #ddd;
-                        padding: 15px;
-                        margin: 20px 0;
-                        font-family: 'Courier New', monospace;
-                        font-size: 10pt;
-                        white-space: pre; /* CRITICAL: Must be pre to respect \n */
-                        color: #000;
-                        display: block;
-                        width: 95%;
-                    }}
-                    code {{
-                        font-family: 'Courier New', monospace;
-                    }}
-                </style>
-            </head>
-            <body>
-                {html_body}
-            </body>
-            </html>
-            """
-
-            # Output filename: code_docXXXX_Copy_Y.pdf
-            out_name = f"{base_name}_Copy_{sec['copy_num']}.pdf"
-            pdf_file = os.path.join(OUTPUT_DIR, out_name)
-
-            with open(pdf_file, "wb") as f_out:
-                pisa_status = pisa.CreatePDF(full_html, dest=f_out, encoding='utf-8')
-
-            if pisa_status.err:
-                print(f"Error converting {out_name}: {pisa_status.err}")
-            else:
-                # print(f"Success: {out_name}")
-                pass
-
+        # Convertir Markdown en HTML
+        html_content = markdown.markdown(
+            md_content,
+            extensions=['tables', 'fenced_code', 'codehilite']
+        )
+        
+        # Ajouter un style CSS basique
+        full_html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {{
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            color: #333;
+        }}
+        h1 {{
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }}
+        h2 {{
+            color: #34495e;
+            margin-top: 30px;
+            border-bottom: 2px solid #95a5a6;
+            padding-bottom: 5px;
+        }}
+        h3 {{
+            color: #7f8c8d;
+            margin-top: 20px;
+        }}
+        table {{
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #3498db;
+            color: white;
+        }}
+        tr:nth-child(even) {{
+            background-color: #f2f2f2;
+        }}
+        code {{
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }}
+        pre {{
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }}
+        blockquote {{
+            border-left: 4px solid #3498db;
+            padding-left: 20px;
+            margin-left: 0;
+            color: #555;
+            font-style: italic;
+        }}
+        .page-break {{
+            page-break-after: always;
+        }}
+    </style>
+</head>
+<body>
+{html_content}
+</body>
+</html>
+"""
+        
+        # Convertir HTML en PDF
+        HTML(string=full_html).write_pdf(pdf_file)
+        return True
+        
     except Exception as e:
-        print(f"Exception for {md_file}: {e}")
+        print(f"Erreur avec WeasyPrint pour {md_file.name}: {e}")
+        return False
+
+def convert_md_to_pdf_pandoc(md_file: Path, pdf_file: Path):
+    """Convertit un fichier Markdown en PDF avec Pandoc"""
+    try:
+        cmd = [
+            'pandoc',
+            str(md_file),
+            '-o', str(pdf_file),
+            '--pdf-engine=xelatex',
+            '-V', 'geometry:margin=2cm',
+            '-V', 'fontsize=11pt'
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode == 0:
+            return True
+        else:
+            print(f"Erreur Pandoc: {result.stderr}")
+            return False
+    except FileNotFoundError:
+        print("Pandoc n'est pas installé")
+        return False
+    except Exception as e:
+        print(f"Erreur avec Pandoc pour {md_file.name}: {e}")
+        return False
 
 def main():
-    files = glob.glob(os.path.join(SOURCE_DIR, "code_*.md"))
-    for f in files:
-        convert_md_to_split_pdf(f)
+    base_dir = Path(r"c:\exam_ing25-26\corrections_par_groupe")
+    
+    print("\n" + "="*60)
+    print("CONVERSION DES CORRECTIONS EN PDF")
+    print("="*60)
+    
+    # Vérifier si WeasyPrint est disponible
+    try:
+        import weasyprint
+        use_weasyprint = True
+        print("\n[INFO] Utilisation de WeasyPrint pour la conversion")
+    except ImportError:
+        use_weasyprint = False
+        print("\n[INFO] WeasyPrint non disponible, tentative avec Pandoc")
+    
+    # Trouver tous les fichiers .md
+    md_files = list(base_dir.glob("**/*.md"))
+    
+    print(f"\n[INFO] Trouvé {len(md_files)} fichiers Markdown à convertir")
+    
+    success_count = 0
+    fail_count = 0
+    
+    for md_file in md_files:
+        pdf_file = md_file.with_suffix('.pdf')
+        
+        print(f"\n[CONVERSION] {md_file.relative_to(base_dir)}...", end=" ")
+        
+        # Essayer WeasyPrint d'abord, puis Pandoc
+        if use_weasyprint:
+            success = convert_md_to_pdf_weasyprint(md_file, pdf_file)
+        else:
+            success = convert_md_to_pdf_pandoc(md_file, pdf_file)
+        
+        if success:
+            print(f"OK -> {pdf_file.name}")
+            success_count += 1
+        else:
+            print(f"ECHEC")
+            fail_count += 1
+    
+    print("\n" + "="*60)
+    print("CONVERSION TERMINEE")
+    print("="*60)
+    print(f"Succès: {success_count}/{len(md_files)}")
+    print(f"Échecs: {fail_count}/{len(md_files)}")
+    print("="*60 + "\n")
 
 if __name__ == "__main__":
     main()
